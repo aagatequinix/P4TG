@@ -62,6 +62,8 @@ pub struct TrafficGen {
     /// The port mapping indicates which ports are used for traffic generation and on which port the returning traffic
     /// is expected.
     pub port_mapping: HashMap<u32, u32>,
+    /// Optional duration for the traffic generation.
+    pub duration: Option<u64>, 
     /// Indicates if tofino2 is used
     pub is_tofino2: bool
 }
@@ -75,6 +77,7 @@ impl TrafficGen {
             streams: vec![],
             mode: GenerationMode::Cbr,
             port_mapping: HashMap::new(),
+            duration: None,
             is_tofino2
         }
     }

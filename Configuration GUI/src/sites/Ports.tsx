@@ -17,139 +17,172 @@
  * Steffen Lindner (steffen.lindner@uni-tuebingen.de)
  */
 
-import React, {useEffect, useState} from 'react'
+import React, { useEffect, useState } from "react";
 import Loader from "../components/Loader";
-import {get, post} from '../common/API'
-import {Button, Col, Form, Row, Table} from "react-bootstrap";
+import { get, post } from "../common/API";
+import { Button, Col, Form, Row, Table } from "react-bootstrap";
 import styled from "styled-components";
 import InfoBox from "../components/InfoBox";
 import {ASIC, FEC, P4TGConfig, P4TGInfos, SPEED} from "../common/Interfaces";
 import {auto_neg_mapping, fec_mapping, loopback_mapping, speed_mapping} from "../common/Definitions";
 import {GitHub} from "./Home";
+import translate from "../components/translation/Translate";
 
 const StyledCol = styled.td`
-    vertical-align: middle;
-    display: table-cell;
-    text-indent: 5px;
-`
+  vertical-align: middle;
+  display: table-cell;
+  text-indent: 5px;
+`;
 
 export const PortStat = styled.span<{ active: boolean }>`
-    color: ${props => (props.active ? 'var(--color-okay)' : 'var(--color-primary)')};
-`
+  color: ${(props) =>
+    props.active ? "var(--color-okay)" : "var(--color-primary)"};
+`;
 
-export const PortStatus = ({active}: { active: boolean }) => {
-    return <PortStat active={active}>
-        {active ?
-            <i className="bi bi-arrow-up-circle-fill"/>
-            :
-            <i className="bi bi-arrow-down-circle-fill"/>
-        }
+export const PortStatus = ({ active }: { active: boolean }) => {
+  return (
+    <PortStat active={active}>
+      {active ? (
+        <i className="bi bi-arrow-up-circle-fill" />
+      ) : (
+        <i className="bi bi-arrow-down-circle-fill" />
+      )}
     </PortStat>
-}
+  );
+};
 
 const Ports = ({p4tg_infos}: {p4tg_infos: P4TGInfos}) => {
     const [loaded, set_loaded] = useState(false)
     const [ports, set_ports] = useState([])
     const [config, set_config] = useState<P4TGConfig>({tg_ports: []})
 
+  const loadPorts = async () => {
+    let stats = await get({ route: "/ports" });
+    let config = await get({ route: "/config" });
 
-    const loadPorts = async () => {
-        let stats = await get({route: "/ports"})
-        let config = await get({route: "/config"})
-
-        if (stats.status === 200) {
-            set_ports(stats.data)
-            set_config(config.data)
-            set_loaded(true)
-        }
+    if (stats.status === 200) {
+      set_ports(stats.data);
+      set_config(config.data);
+      set_loaded(true);
     }
+  };
 
-    const updatePort = async (pid: number, speed: string, fec: string, auto_neg: string) => {
-        let update = await post({
-            route: "/ports", body: {
-                pid: pid,
-                speed: speed,
-                fec: fec,
-                auto_neg: auto_neg
-            }
-        })
+  const updatePort = async (
+    pid: number,
+    speed: string,
+    fec: string,
+    auto_neg: string
+  ) => {
+    let update = await post({
+      route: "/ports",
+      body: {
+        pid: pid,
+        speed: speed,
+        fec: fec,
+        auto_neg: auto_neg,
+      },
+    });
 
-        if (update.status === 201) {
-            refresh()
-        }
-    }
+    if (update.status === 201) {
+      refresh()
+  }
+}
 
-    const updateArp = async (pid: number, state: boolean) => {
-        console.log(state)
-        let update = await post({
-            route: "/ports/arp", body: {
-                pid: pid,
-                arp_reply: state
-            }
-        })
+const updateArp = async (pid: number, state: boolean) => {
+  console.log(state)
+  let update = await post({
+      route: "/ports/arp", body: {
+          pid: pid,
+          arp_reply: state
+      }
+  })
 
-        if (update.status === 201) {
-            refresh()
-        }
-    }
+  if (update.status === 201) {
+      refresh()
+  }
+}
 
-    const getMac = (port: number) => {
-        let mac = "Unknown"
+const getMac = (port: number) => {
+  let mac = "Unknown"
 
-        config.tg_ports.forEach(p => {
-            if(p.port == port) {
-                mac = p.mac
-            }
-        })
+  config.tg_ports.forEach(p => {
+      if(p.port == port) {
+          mac = p.mac
+      }
+  })
 
-        return mac
-    }
+  return mac
+}
 
-    const getArpReply = (port: number) => {
-        let reply = false
+const getArpReply = (port: number) => {
+  let reply = false
 
-        config.tg_ports.forEach(p => {
-            if(p.port == port) {
-                reply = p.arp_reply ?? false
-            }
-        })
+  config.tg_ports.forEach(p => {
+      if(p.port == port) {
+          reply = p.arp_reply ?? false
+      }
+  })
 
-        return reply
-    }
+  return reply
+}
 
-    const refresh = () => {
-        set_loaded(false)
-        loadPorts()
-    }
+const refresh = () => {
+  set_loaded(false)
+  loadPorts()
+}
 
-    useEffect(() => {
-        loadPorts()
+useEffect(() => {
+  loadPorts()
 
-    }, [])
+}, [])
 
+  const [currentLanguage, setCurrentLanguage] = useState(
+    localStorage.getItem("language") || "en-US"
+  );
 
-    return <Loader loaded={loaded}>
-        <Table striped bordered hover size="sm" className={"mt-3 mb-3 text-center"}>
-            <thead className={"table-dark"}>
-            <tr>
-                <th>PID</th>
-                <th>Port</th>
-                <th>MAC &nbsp; <InfoBox>
-                    <p>MAC address that is used to answer ARP requests (if enabled). The address can be changed in the config.json file of the controller.</p>
-                </InfoBox>
-                </th>
-                <th>Speed</th>
-                <th>Auto Negotiation</th>
-                <th>FEC</th>
-                <th>ARP Reply &nbsp;
-                <InfoBox>
-                    <p>If enabled, the port will answer all received ARP requests.</p></InfoBox>
-                </th>
-                <th>Status</th>
-            </tr>
-            </thead>
-            <tbody>
-            {ports.map((v: any, i: number) => {
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const storedLanguage = localStorage.getItem("language") || "en-US";
+      if (storedLanguage != currentLanguage) {
+        setCurrentLanguage(storedLanguage);
+      }
+    }, 100);
+    return () => clearInterval(interval);
+  }, [currentLanguage]);
+
+  return (
+    <Loader loaded={loaded}>
+      <Table
+        striped
+        bordered
+        hover
+        size="sm"
+        className={"mt-3 mb-3 text-center"}
+      >
+        <thead className={"table-dark"}>
+          <tr>
+            <th>PID</th>
+            <th>Port</th>
+            <th>
+              MAC &nbsp;{" "}
+              <InfoBox>
+                <p>{translate("infoBoxes.mac", currentLanguage)}</p>
+              </InfoBox>
+            </th>
+            <th>{translate("other.speed", currentLanguage)}</th>
+            <th>Auto Negotiation</th>
+            <th>FEC</th>
+            <th>
+              {translate("other.arpReply", currentLanguage)} &nbsp;
+              <InfoBox>
+                <p>{translate("infoBoxes.arp", currentLanguage)}</p>
+              </InfoBox>
+            </th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+        {ports.map((v: any, i: number) => {
                 if (loopback_mapping[v["loopback"]] != "On" || p4tg_infos.loopback) {
                     return <tr key={i}>
                         <StyledCol className={"col-1"}>{v["pid"]}</StyledCol>
@@ -237,9 +270,9 @@ const Ports = ({p4tg_infos}: {p4tg_infos: P4TGInfos}) => {
             </Col>
         </Row>
 
-        <GitHub/>
-
+      <GitHub />
     </Loader>
-}
+  );
+};
 
-export default Ports
+export default Ports;
